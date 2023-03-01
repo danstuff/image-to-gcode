@@ -19,8 +19,13 @@
 ## cnc-club.ru
 ## image-to-gcode.py is Copyright (C) 2018 Yaroslav Vlasov
 ## ysvlasov@yandex.ru
+##
+## Dan Yost made the following changes:
+##  - Compatibility with Python 3
+##  - Added settings categories 
+##  - Misc grammatical error fixes and changes for clarity
 
-VersionI2G = "3.8.9"
+VersionI2G = "3.9.0"
 
 printToFile = True
 generateGcode = True #for debug
@@ -257,14 +262,14 @@ def make_tool_shape(f, wdia, resp, is_offset= False, tool_type=0, wdia2=-9999, d
                     z = f(r, wrad)
                     l.append(z)
                     n[x,y] = z
-                    if z < 0. and prn_detail > -1: print("( tool error 1: r=",r," x=",x," y=",y," hight<0 hight= ",z,", mast be >= 0 )")
-                    #if z > 300: print(" error 1: tool hight1: r=",r," x=",x," y=",y," hight= ",z," is too big!"))
+                    if z < 0. and prn_detail > -1: print("( tool error 1: r=",r," x=",x," y=",y," height<0 height= ",z,", mast be >= 0 )")
+                    #if z > 300: print(" error 1: tool height: r=",r," x=",x," y=",y," height= ",z," is too big!"))
                 elif r < wrad2:
                     z = f2(r,wrad2) - h0
                     l.append(z)
                     n[x,y] = z
                     if z < 0. and prn_detail > -1: print("( tool error 2: r=",r," x=",x," y=",y," z<0 z= ",z,", mast be >= 0 )")
-                    #if z > 300: print(" error 2: tool hight1: r=",r," x=",x," y=",y," hight= ",z," is too big!"))
+                    #if z > 300: print(" error 2: tool height: r=",r," x=",x," y=",y," height= ",z," is too big!"))
 
     if n.min() != 0. and prn_detail > -1: print("( error(0): tool.minimum = ",n.min(),", mast be == 0 )")
     return n
@@ -2655,15 +2660,28 @@ def ui(im, nim, im_name):
 
     note = Notebook(app)
 
-    imageTab = tkinter.Frame(note)
-    settingsTab1 = tkinter.Frame(note)
-    settingsTab2 = tkinter.Frame(note)
-    savingTab = tkinter.Frame(note)
+    categories = [
+        ("Input", 4),
+        ("Machine", 15),
+        ("Tool", 28),
+        ("Material", 36),
+    ]
 
+    cat_tabs = [ None, None, None, None ]
+    cat_frames = [ None, None, None, None ]
+
+    imageTab = tkinter.Frame(note)
     note.add(imageTab, text = "Image", compound="top")
-    note.add(settingsTab1, text = "Settings1")
-    note.add(settingsTab2, text = "Settings2")
-    note.add(savingTab, text = "Saving")
+
+    for i, cat in enumerate(categories):
+        cat_tabs[i] = tkinter.Frame(note)
+        cat_frames[i] = tkinter.Frame(cat_tabs[i])
+        cat_frames[i].grid(row=0, column=1, sticky="nw")
+        note.add(cat_tabs[i], text = cat[0])
+
+    savingTab = tkinter.Frame(note)
+    note.add(savingTab, text = "Save/Load Settings")
+
     note.grid(row=0, column=1, sticky="nw")
 
     ui_image = im.resize((nw,nh), Image.ANTIALIAS)
@@ -2674,12 +2692,6 @@ def ui(im, nim, im_name):
             % {'w': im.size[0], 'h': im.size[1], 'min': nim.min(), 'max': nim.max()},
         justify="left")
 
-    f = tkinter.Frame(settingsTab1)
-    #f.configure(background='Red')
-    
-    f2 = tkinter.Frame(settingsTab2)
-    #g.configure(background='Blue')
-
     save = tkinter.Frame(savingTab)
     
     g = tkinter.Frame(app)
@@ -2688,11 +2700,9 @@ def ui(im, nim, im_name):
     b = tkinter.Frame(app)
     #b.configure(background='Yellow')
 
-    frame = f
+    frame = cat_frames[0]
     
     i.grid(row=0, column=0, sticky="nw")
-    f.grid(row=0, column=1, sticky="nw")
-    f2.grid(row=0, column=1, sticky="nw")
     save.grid(row=0, column=1, sticky="nw")
     b.grid(row=1, column=0, columnspan=2, sticky="ne")
 
@@ -2741,7 +2751,7 @@ def ui(im, nim, im_name):
 
         i.configure(text=_("Image size: %(w)d x %(h)d pixels\n"
                 "Size in units: %(w2).3f x %(h2).3f (units)\n"
-                "Minimum pixel value: %(min)03d hight: %(hs).3f (units)\n"
+                "Minimum pixel value: %(min)03d height: %(hs).3f (units)\n"
                 "Maximum pixel value: %(max)03d depth: %(he).3f (units)\n"
                 "Tool size: %(tspx)3d (pixels)\n"
                 "Step: %(stpu).3f (units) [step/tool: %(tpps)s]\n"
@@ -2857,43 +2867,51 @@ def ui(im, nim, im_name):
     else:
         settingsDir = settingsDir+"/"
     rc = settingsDir+"settings.image2gcoderc"
+
     constructors = [
+        # Input (4)
         ("units", optionmenu(_("G20 (in)"), _("G21 (mm)"))),
+        ("pixel_size", floatentry),
         ("invert", checkbutton),
         ("normalize", checkbutton),
         ("expand", optionmenu(_("None"), _("White"), _("Black"))),
-        ("tolerance", floatentry),
-        ("pixel_size", floatentry),
-        ("feed_rate", floatentry),
-        ("plunge_feed_rate", floatentry),
-        ("spindle_speed", floatentry),
+
+        # Machine (15)
         ("pattern", optionmenu(_("Rows"), _("Columns"), _("Rows then Columns"), _("Columns then Rows"), _("Rows Object"), _("Cols Object"))),
         ("converter", optionmenu(_("Positive"), _("Negative"), _("Alternating"), _("Up Milling"), _("Down Milling"))),
-        ("depth", floatentry),
-        ("background_border", floatentry),
-        ("max_bg_len", intscale2),
-        ("pixelstep", intscale),
         ("safety_height", floatentry),
+        ("background_border", floatentry),
+        ("detail_of_comments", intscale3),
+        ("cut_top_jumper", checkbutton),
+        ("layer_by_layer", checkbutton),
+        ("optimize_path", checkbutton),
+        ("bounded", optionmenu(_("None"), _("Secondary"), _("Full"))),
+        ("contact_angle", floatentry),
+        ("max_bg_len", intscale2),
+
+        # Tool (28)
         ("tool_diameter", floatentry),
         ("tool_type", optionmenu(_("Ball End"), _("Flat End"), _("30 Degree"), _("45 Degree"), _("60 Degree"), _("90 Degree"))),
         ("tool_diameter2", floatentry),
         ("angle2", floatentry),
-        ("bounded", optionmenu(_("None"), _("Secondary"), _("Full"))),
-        ("contact_angle", floatentry),
-        ("layer_by_layer", checkbutton),
-        ("optimize_path", checkbutton),
         ("roughing_minus_finishing", checkbutton),
         ("min_delta_rmf",floatentry),
         ("previous_offset", floatentry),
         ("roughing_offset", floatentry),
         ("roughing_depth", floatentry),
-        ("pixelstep_roughing", intscale),
         ("tool_diameter_roughing", floatentry),
         ("tool_type_roughing", optionmenu(_("Ball End"), _("Flat End"), _("30 Degree"), _("45 Degree"), _("60 Degree"), _("90 Degree"))),
         ("tool_diameter_roughing2", floatentry),
         ("angle2_roughing", floatentry),
-        ("cut_top_jumper", checkbutton),
-        ("detail_of_comments", intscale3)
+
+        # Material (36)
+        ("tolerance", floatentry),
+        ("feed_rate", floatentry),
+        ("plunge_feed_rate", floatentry),
+        ("spindle_speed", floatentry),
+        ("depth", floatentry),
+        ("pixelstep", intscale),
+        ("pixelstep_roughing", intscale),
     ]
 
     defaults = dict(
@@ -2974,6 +2992,7 @@ def ui(im, nim, im_name):
         detail_of_comments=_("The detail of comments"),
     )
 
+
     try:
         defaults.update(pickle.load(open(rc, "rb")))
     except (IOError, pickle.PickleError): pass
@@ -2981,6 +3000,7 @@ def ui(im, nim, im_name):
     vars = {}
     widgets = {}
     chw = {}
+    cati = 0
     for j, (k, con) in enumerate(constructors):
         v = defaults[k]
         text = texts.get(k, k.replace("_", " "))
@@ -2988,8 +3008,9 @@ def ui(im, nim, im_name):
         widgets[k], vars[k], chw[k] = con(frame, v)
         lab.grid(row=j, column=0, sticky="w")
         widgets[k].grid(row=j, column=1, sticky="ew")
-        if j == 19:
-            frame = f2
+        if j >= categories[cati][1]:
+            cati = cati+1
+            frame = cat_frames[cati]
         #print j, k, v, "\t\t", vars[k], "\t\t",vars[k].get()
 
     def trace_pattern(*args):
